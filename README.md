@@ -101,11 +101,11 @@ Multi-hit and Magnitude (same `mode` as IV bounds):
 - `EFFECT_DOUBLE_HIT` (e.g. Double Kick): always 2 hits.
 - `EFFECT_MAGNITUDE`: `min` = 10 base power, `max` = 150 base power (matches in-game magnitude table).
 
-Constant / level-based damage (no atk/def/STAB/type in the function; uses defender max HP from stats + IV + level):
+Constant / level-based damage (no atk/def/STAB; defender max HP from stats + IV + level):
 
-- `EFFECT_LEVEL_DAMAGE` (Night Shade, Seismic Toss): damage = attacker level → `% = level / defender_HP * 100`.
-- `EFFECT_STATIC_DAMAGE` (Sonic Boom = 20, Dragon Rage = 40, etc.): damage = move `power` → `% = power / defender_HP * 100`.
-- `EFFECT_SUPER_FANG`: always **50%** of defender HP (full HP assumption).
+- `EFFECT_LEVEL_DAMAGE` (Night Shade, Seismic Toss): fixed damage = attacker level **only if not immune** (e.g. Ghost Night Shade vs Normal = **0%**); otherwise **neutral** (no super-effective / resist scaling).
+- `EFFECT_STATIC_DAMAGE` (Sonic Boom = 20, Dragon Rage = 40, etc.): fixed move `power` unless **immune**, then neutral.
+- `EFFECT_SUPER_FANG`: **50%** of defender HP unless **immune** (e.g. Normal vs Ghost = **0%**).
 
 ## Discussion
 

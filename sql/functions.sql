@@ -51,6 +51,7 @@ BEGIN
     DECLARE v_defender_level_clamped INT;
     DECLARE v_damage DECIMAL(16,6);
     DECLARE v_percent DECIMAL(16,6);
+    DECLARE v_fixed_damage_hits DECIMAL(6,3);
 
     SELECT m.power, m.type_id, m.category, m.effect
       INTO v_move_power, v_move_type_id, v_move_category, v_move_effect
@@ -121,41 +122,7 @@ BEGIN
         RETURN 0.0000;
     END IF;
 
-    -- Fixed / level-based damage (ignores atk/def, STAB, and type chart in this simulation).
-    IF v_move_effect = 'EFFECT_SUPER_FANG' THEN
-        RETURN 50.0000;
-    END IF;
-
-    IF v_move_effect = 'EFFECT_LEVEL_DAMAGE' THEN
-        -- Night Shade / Seismic Toss: damage equals user's level.
-        SET v_percent = (v_attacker_level_clamped / v_defender_effective_hp) * 100.0;
-        RETURN ROUND(v_percent, 4);
-    END IF;
-
-    IF v_move_effect = 'EFFECT_STATIC_DAMAGE' THEN
-        -- Sonic Boom (20), Dragon Rage (40), etc.: damage equals move power.
-        SET v_percent = (v_move_power / v_defender_effective_hp) * 100.0;
-        RETURN ROUND(v_percent, 4);
-    END IF;
-
-    IF v_move_category = 'PHYSICAL' THEN
-        SET v_attack_stat = v_attacker_effective_atk;
-        SET v_defense_stat = v_defender_effective_def;
-    ELSE
-        SET v_attack_stat = v_attacker_effective_sat;
-        SET v_defense_stat = v_defender_effective_sdf;
-    END IF;
-
-    IF v_defense_stat <= 0 THEN
-        RETURN 0.0000;
-    END IF;
-
-    IF v_move_type_id = v_attacker_type1 OR (v_attacker_type2 IS NOT NULL AND v_move_type_id = v_attacker_type2) THEN
-        SET v_stab = 1.5;
-    ELSE
-        SET v_stab = 1.0;
-    END IF;
-
+    -- Type effectiveness vs defender (same lookup as standard moves): Ghost vs Normal = Immune, etc.
     SELECT tdr.relation
       INTO v_type_relation
       FROM type_defensive_relations tdr
@@ -177,6 +144,47 @@ BEGIN
         WHEN '2x super effective' THEN 4
         ELSE 1
     END;
+
+    -- Night Shade / Seismic Toss / static BP: only immunity matters (0 vs not); never SE/resist on fixed damage.
+    SET v_fixed_damage_hits = IF(v_type_multiplier = 0, 0, 1);
+
+    -- Fixed / level-based damage: ignores atk/def and STAB; type chart only for immunity (e.g. Ghost Night Shade vs Normal).
+    IF v_move_effect = 'EFFECT_SUPER_FANG' THEN
+        IF v_type_multiplier = 0 THEN
+            RETURN 0.0000;
+        END IF;
+        RETURN 50.0000;
+    END IF;
+
+    IF v_move_effect = 'EFFECT_LEVEL_DAMAGE' THEN
+        -- Night Shade / Seismic Toss: damage equals user's level when not immune (never scaled by SE/resist).
+        SET v_percent = (v_attacker_level_clamped / v_defender_effective_hp) * 100.0 * v_fixed_damage_hits;
+        RETURN ROUND(v_percent, 4);
+    END IF;
+
+    IF v_move_effect = 'EFFECT_STATIC_DAMAGE' THEN
+        -- Sonic Boom (20), Dragon Rage (40), etc.: fixed power unless immune.
+        SET v_percent = (v_move_power / v_defender_effective_hp) * 100.0 * v_fixed_damage_hits;
+        RETURN ROUND(v_percent, 4);
+    END IF;
+
+    IF v_move_category = 'PHYSICAL' THEN
+        SET v_attack_stat = v_attacker_effective_atk;
+        SET v_defense_stat = v_defender_effective_def;
+    ELSE
+        SET v_attack_stat = v_attacker_effective_sat;
+        SET v_defense_stat = v_defender_effective_sdf;
+    END IF;
+
+    IF v_defense_stat <= 0 THEN
+        RETURN 0.0000;
+    END IF;
+
+    IF v_move_type_id = v_attacker_type1 OR (v_attacker_type2 IS NOT NULL AND v_move_type_id = v_attacker_type2) THEN
+        SET v_stab = 1.5;
+    ELSE
+        SET v_stab = 1.0;
+    END IF;
 
     -- Simplified standard damage per hit (no weather/crit/random/items/abilities).
     SET v_damage =
