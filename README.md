@@ -51,6 +51,62 @@ A full list of features is in [FEATURES.md](FEATURES.md). Some highlights:
 - **Improved Level Curve** with steadily increasing challenges.
 - **Music and Graphics** devamped from newer generations.
 
+## MySQL Pokemon DB Scripts
+
+This repository now includes scripts to export core Pokemon data into MySQL.
+
+- Schema file: `sql/schema.sql`
+- Data export script: `scripts/export_sql.py`
+- Generated seed file: `sql/seed_data.sql`
+
+### What is exported
+
+- `pokemon` (including forms), with `hp`, `atk`, `def`, `sat`, `sdf`, `spe`, `bst`, and dual type columns.
+- `abilities` with code, display name, and description.
+- `pokemon_abilities` many-to-many links with slots (1/2/3).
+- `moves` with code, name, description, power, accuracy, and type.
+- `pokemon_moves` many-to-many links with learn methods:
+  - `level_up` from `data/pokemon/evos_attacks.asm`
+  - `tm_hm` and `tutor` from `data/pokemon/base_stats/*.asm` + `data/moves/tmhm_moves.asm`
+
+### Generate and import
+
+1. Generate seed SQL:
+   - `python scripts/export_sql.py`
+2. Create tables:
+   - `mysql -u <user> -p < sql/schema.sql`
+3. Insert data:
+   - `mysql -u <user> -p < sql/seed_data.sql`
+
+### Damage simulation function
+
+You can also create a helper SQL function:
+
+- `mysql -u <user> -p < sql/functions.sql`
+
+Function:
+
+- `calculate_attack_damage_percent(attacker_pokemon_id, move_id, defender_pokemon_id, attacker_level, defender_level, mode)`
+  - `mode = 'min'`: attacker IV minimized, defender IV maximized (EVs are ignored)
+  - `mode = 'max'`: attacker IV maximized, defender IV minimized (EVs are ignored)
+
+Example:
+
+- `SELECT calculate_attack_damage_percent(65, 7, 249, 50, 50, 'min');`
+- `SELECT calculate_attack_damage_percent(65, 7, 249, 50, 50, 'max');`
+
+Multi-hit and Magnitude (same `mode` as IV bounds):
+
+- `EFFECT_MULTI_HIT` (e.g. Rock Blast): `min` = 2 hits, `max` = 5 hits.
+- `EFFECT_DOUBLE_HIT` (e.g. Double Kick): always 2 hits.
+- `EFFECT_MAGNITUDE`: `min` = 10 base power, `max` = 150 base power (matches in-game magnitude table).
+
+Constant / level-based damage (no atk/def/STAB/type in the function; uses defender max HP from stats + IV + level):
+
+- `EFFECT_LEVEL_DAMAGE` (Night Shade, Seismic Toss): damage = attacker level → `% = level / defender_HP * 100`.
+- `EFFECT_STATIC_DAMAGE` (Sonic Boom = 20, Dragon Rage = 40, etc.): damage = move `power` → `% = power / defender_HP * 100`.
+- `EFFECT_SUPER_FANG`: always **50%** of defender HP (full HP assumption).
+
 ## Discussion
 
 If you have questions or comments, please check or post on any of these sites. (Read the [FAQ](FAQ.md) first if you have general questions!)
