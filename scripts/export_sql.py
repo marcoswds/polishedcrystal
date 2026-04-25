@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -244,6 +245,27 @@ FORM_SUFFIXES = [
 ]
 
 
+@functools.lru_cache(maxsize=1)
+def pokemon_type_codes() -> frozenset[str]:
+    """ASM identifiers that are Pokemon types (constants/type_constants.asm)."""
+    path = ROOT / "constants" / "type_constants.asm"
+    names: list[str] = []
+    recording = False
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        s = strip_inline_comment(raw)
+        if re.match(r"^\s*const_def\b", s):
+            if recording:
+                break
+            recording = True
+            continue
+        if "DEF NUM_TYPES" in s:
+            break
+        m = re.match(r"^\s*const\s+([A-Za-z0-9_]+)", s)
+        if m and recording:
+            names.append(m.group(1))
+    return frozenset(names)
+
+
 def parse_species_form_from_code(code: str) -> tuple[str, str]:
     for suffix in FORM_SUFFIXES:
         suffix_token = "_" + suffix
@@ -260,21 +282,36 @@ def parse_base_stats_file(path: Path) -> PokemonRow:
     abilities: list[str] = []
     tmhm_moves: list[str] = []
 
+    types_known = pokemon_type_codes()
+
     for raw in preprocess_asm(path):
         line = strip_inline_comment(raw)
         if not line:
             continue
 
-        # Seven numbers: total, hp, atk, def, then special/speed triple as written in each species file
-        # (comments use sat, sdf, spe — map to DB columns in that order).
+        # Legacy layout: bst total, hp, atk, def, sat, sdf, spe
         m_bst = re.match(r"^\s*bst\s+(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*$", line)
         if m_bst:
             stats = tuple(int(m_bst.group(i)) for i in range(1, 8))
             continue
 
+        # Current layout: db hp, atk, def, spe, sat, sdf ; total BST
+        m_stats_db = re.match(
+            r"^\s*db\s+(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*$",
+            line,
+        )
+        if m_stats_db and stats is None:
+            hp, atk, defn, spe, sat, sdf = (int(m_stats_db.group(i)) for i in range(1, 7))
+            m_bst_comment = re.search(r";\s*(\d+)\s*BST\b", raw, re.I)
+            bst = int(m_bst_comment.group(1)) if m_bst_comment else hp + atk + defn + spe + sat + sdf
+            stats = (bst, hp, atk, defn, sat, sdf, spe)
+            continue
+
         m_type = re.match(r"^\s*db\s+([A-Z0-9_]+)\s*,\s*([A-Z0-9_]+)\s*$", line)
-        if m_type and type1 is None:
-            type1, type2 = m_type.group(1), m_type.group(2)
+        if m_type and stats is not None and type1 is None:
+            a, b = m_type.group(1), m_type.group(2)
+            if a in types_known and b in types_known:
+                type1, type2 = a, b
             continue
 
         m_abil = re.match(r"^\s*abilities_for\s+([A-Z0-9_]+)\s*,\s*([A-Z0-9_]+)\s*,\s*([A-Z0-9_]+)\s*,\s*([A-Z0-9_]+)\s*$", line)
