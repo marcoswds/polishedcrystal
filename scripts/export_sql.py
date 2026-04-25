@@ -407,6 +407,8 @@ def parse_type_matchups() -> dict[tuple[str, str], float]:
         attacker, defender, effect = m.group(1), m.group(2), m.group(3)
         if effect in value_map:
             out[(attacker, defender)] = value_map[effect]
+    # type_matchups.asm comments out GROUND vs FLYING (handled by airborne in battle); chart still needs it.
+    out[("GROUND", "FLYING")] = 0.0
     return out
 
 

@@ -47,6 +47,9 @@ BEGIN
     DECLARE v_stab DECIMAL(6,3);
     DECLARE v_type_relation VARCHAR(32);
     DECLARE v_type_multiplier DECIMAL(6,3);
+    DECLARE v_move_type_code VARCHAR(32);
+    DECLARE v_def_type1_code VARCHAR(32);
+    DECLARE v_def_type2_code VARCHAR(32);
     DECLARE v_attacker_level_clamped INT;
     DECLARE v_defender_level_clamped INT;
     DECLARE v_damage DECIMAL(16,6);
@@ -122,28 +125,42 @@ BEGIN
         RETURN 0.0000;
     END IF;
 
-    -- Type effectiveness vs defender (same lookup as standard moves): Ghost vs Normal = Immune, etc.
-    SELECT tdr.relation
-      INTO v_type_relation
-      FROM type_defensive_relations tdr
-     WHERE tdr.type1_id = LEAST(v_defender_type1, IFNULL(v_defender_type2, v_defender_type1))
-       AND (
-            (v_defender_type2 IS NULL AND tdr.type2_id IS NULL)
-            OR
-            (v_defender_type2 IS NOT NULL AND tdr.type2_id = GREATEST(v_defender_type1, v_defender_type2))
-       )
-       AND tdr.type3_id = v_move_type_id
-     LIMIT 1;
+    -- Type codes for rules not represented in type_matchups.asm (e.g. GROUND vs FLYING is commented there).
+    SELECT t.code INTO v_move_type_code FROM types t WHERE t.id = v_move_type_id LIMIT 1;
+    SELECT t.code INTO v_def_type1_code FROM types t WHERE t.id = v_defender_type1 LIMIT 1;
+    IF v_defender_type2 IS NOT NULL THEN
+        SELECT t.code INTO v_def_type2_code FROM types t WHERE t.id = v_defender_type2 LIMIT 1;
+    ELSE
+        SET v_def_type2_code = NULL;
+    END IF;
 
-    SET v_type_multiplier = CASE v_type_relation
-        WHEN 'Immune' THEN 0
-        WHEN '2x resist' THEN 0.25
-        WHEN 'Resist' THEN 0.5
-        WHEN 'Normal' THEN 1
-        WHEN 'Super effective' THEN 2
-        WHEN '2x super effective' THEN 4
-        ELSE 1
-    END;
+    -- Standard chart: Ground does not affect Flying (still true when dual-typed, e.g. Poison/Flying).
+    IF v_move_type_code = 'GROUND' AND (v_def_type1_code = 'FLYING' OR v_def_type2_code = 'FLYING') THEN
+        SET v_type_relation = 'Immune';
+        SET v_type_multiplier = 0;
+    ELSE
+        SELECT tdr.relation
+          INTO v_type_relation
+          FROM type_defensive_relations tdr
+         WHERE tdr.type1_id = LEAST(v_defender_type1, IFNULL(v_defender_type2, v_defender_type1))
+           AND (
+                (v_defender_type2 IS NULL AND tdr.type2_id IS NULL)
+                OR
+                (v_defender_type2 IS NOT NULL AND tdr.type2_id = GREATEST(v_defender_type1, v_defender_type2))
+           )
+           AND tdr.type3_id = v_move_type_id
+         LIMIT 1;
+
+        SET v_type_multiplier = CASE v_type_relation
+            WHEN 'Immune' THEN 0
+            WHEN '2x resist' THEN 0.25
+            WHEN 'Resist' THEN 0.5
+            WHEN 'Normal' THEN 1
+            WHEN 'Super effective' THEN 2
+            WHEN '2x super effective' THEN 4
+            ELSE 1
+        END;
+    END IF;
 
     -- Night Shade / Seismic Toss / static BP: only immunity matters (0 vs not); never SE/resist on fixed damage.
     SET v_fixed_damage_hits = IF(v_type_multiplier = 0, 0, 1);
