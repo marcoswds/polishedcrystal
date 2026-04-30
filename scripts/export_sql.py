@@ -224,6 +224,8 @@ class PokemonRow:
     sat: int
     sdf: int
     spe: int
+    height_dm: int
+    weight_tenths_kg: int
     bst: int
     evolution_form: str | None
     evolution_level: int | None
@@ -343,6 +345,8 @@ def parse_base_stats_file(path: Path) -> PokemonRow:
         sat=stats[4],
         sdf=stats[5],
         spe=stats[6],
+        height_dm=0,
+        weight_tenths_kg=0,
         bst=stats[0],
         evolution_form=None,
         evolution_level=None,
@@ -565,8 +569,22 @@ def gather_types(pokemon_rows: list[PokemonRow], move_rows: list[dict[str, objec
     return [(c, humanize_code(c) if c != "UNKNOWN_T" else "???" ) for c in ordered]
 
 
+def parse_body_data() -> list[tuple[int, int]]:
+    """Height (dm) and weight (kg * 10) from body_data.asm; row order matches base_stats.asm includes."""
+    path = DATA_DIR / "pokemon" / "body_data.asm"
+    out: list[tuple[int, int]] = []
+    for line in preprocess_asm(path):
+        m = re.match(r"^\s*body_data\s+(\d+)\s*,\s*(\d+)\s*,", strip_inline_comment(line))
+        if m:
+            out.append((int(m.group(1)), int(m.group(2))))
+    return out
+
+
 def build_pokemon_rows() -> list[PokemonRow]:
     includes = parse_base_stats_index()
+    body_pairs = parse_body_data()
+    if len(body_pairs) != len(includes):
+        raise ValueError(f"body_data rows ({len(body_pairs)}) != base_stats includes ({len(includes)})")
     out: list[PokemonRow] = []
     seen: dict[tuple[str, str], int] = {}
     for path, comment in includes:
@@ -581,6 +599,8 @@ def build_pokemon_rows() -> list[PokemonRow]:
                 row.name = f"{humanize_code(row.species_code)} ({row.form_code})"
             key = (row.species_code, row.form_code)
         seen[key] = seen.get(key, 0) + 1
+        idx = len(out)
+        row.height_dm, row.weight_tenths_kg = body_pairs[idx]
         out.append(row)
     return out
 
@@ -688,12 +708,31 @@ def generate_seed_sql(output: Path) -> None:
         evo_req_sql = "NULL" if row.evolution_requirement is None else sql_string(row.evolution_requirement)
         pokemon_values.append(
             f"({idx}, {sql_string(row.species_code)}, {sql_string(row.form_code)}, {sql_string(row.name)}, "
-            f"{row.hp}, {row.atk}, {row.defn}, {row.sat}, {row.sdf}, {row.spe}, {row.bst}, {evo_form_sql}, {evo_level_sql}, {evo_req_sql}, {type_id[row.type1]}, {type2_sql})"
+            f"{row.hp}, {row.atk}, {row.defn}, {row.sat}, {row.sdf}, {row.spe}, {row.height_dm}, {row.weight_tenths_kg}, {row.bst}, {evo_form_sql}, {evo_level_sql}, {evo_req_sql}, {type_id[row.type1]}, {type2_sql})"
         )
     append_bulk_insert(
         lines,
         "pokemon",
-        ["id", "species_code", "form_code", "name", "hp", "atk", "def", "sat", "sdf", "spe", "bst", "evolution_form", "evolution_level", "evolution_requirement", "primary_type_id", "secondary_type_id"],
+        [
+            "id",
+            "species_code",
+            "form_code",
+            "name",
+            "hp",
+            "atk",
+            "def",
+            "sat",
+            "sdf",
+            "spe",
+            "height_dm",
+            "weight_tenths_kg",
+            "bst",
+            "evolution_form",
+            "evolution_level",
+            "evolution_requirement",
+            "primary_type_id",
+            "secondary_type_id",
+        ],
         pokemon_values,
         chunk_size=500,
     )

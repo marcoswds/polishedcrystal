@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS pokemon (
   sat INT NOT NULL,
   sdf INT NOT NULL,
   spe INT NOT NULL,
+  height_dm INT NOT NULL,
+  weight_tenths_kg INT NOT NULL,
   bst INT NOT NULL,
   evolution_form ENUM('lvl_up', 'stones', 'others') NULL,
   evolution_level INT NULL,

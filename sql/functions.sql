@@ -32,6 +32,7 @@ BEGIN
     DECLARE v_defender_hp_base INT;
     DECLARE v_defender_type1 INT;
     DECLARE v_defender_type2 INT;
+    DECLARE v_defender_weight_tenths INT;
 
     DECLARE v_attacker_iv INT;
     DECLARE v_defender_iv INT;
@@ -93,10 +94,22 @@ BEGIN
       FROM pokemon p
      WHERE p.id = p_attacker_pokemon_id;
 
-    SELECT p.def, p.sdf, p.hp, p.primary_type_id, p.secondary_type_id
-      INTO v_defender_def, v_defender_sdf, v_defender_hp_base, v_defender_type1, v_defender_type2
+    SELECT p.def, p.sdf, p.hp, p.primary_type_id, p.secondary_type_id, p.weight_tenths_kg
+      INTO v_defender_def, v_defender_sdf, v_defender_hp_base, v_defender_type1, v_defender_type2, v_defender_weight_tenths
       FROM pokemon p
      WHERE p.id = p_defender_pokemon_id;
+
+    -- Low Kick: effective BP from defender mass (data/moves/low_kick_power.asm).
+    IF v_move_effect = 'EFFECT_LOW_KICK' THEN
+        SET v_move_power = CASE
+            WHEN v_defender_weight_tenths >= 2000 THEN 120
+            WHEN v_defender_weight_tenths >= 1000 THEN 100
+            WHEN v_defender_weight_tenths >= 50 THEN 80
+            WHEN v_defender_weight_tenths >= 25 THEN 60
+            WHEN v_defender_weight_tenths >= 10 THEN 40
+            ELSE 20
+        END;
+    END IF;
 
     IF p_mode = 'min' THEN
         -- Worst case for attacker, best case for defender.
@@ -134,8 +147,11 @@ BEGIN
         SET v_def_type2_code = NULL;
     END IF;
 
-    -- Standard chart: Ground does not affect Flying (still true when dual-typed, e.g. Poison/Flying).
-    IF v_move_type_code = 'GROUND' AND (v_def_type1_code = 'FLYING' OR v_def_type2_code = 'FLYING') THEN
+    -- Explicit immunity guards (important when matchup rows are missing/stale).
+    IF (v_move_type_code = 'GROUND' AND (v_def_type1_code = 'FLYING' OR v_def_type2_code = 'FLYING'))
+       OR (v_move_type_code = 'NORMAL' AND (v_def_type1_code = 'GHOST' OR v_def_type2_code = 'GHOST'))
+       OR (v_move_type_code = 'FIGHTING' AND (v_def_type1_code = 'GHOST' OR v_def_type2_code = 'GHOST'))
+       OR (v_move_type_code = 'GHOST' AND (v_def_type1_code = 'NORMAL' OR v_def_type2_code = 'NORMAL')) THEN
         SET v_type_relation = 'Immune';
         SET v_type_multiplier = 0;
     ELSE
