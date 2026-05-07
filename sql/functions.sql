@@ -99,14 +99,14 @@ BEGIN
       FROM pokemon p
      WHERE p.id = p_defender_pokemon_id;
 
-    -- Low Kick: effective BP from defender mass (data/moves/low_kick_power.asm).
+    -- Low Kick: BP vs defender BODY_WEIGHT scale (mass in tenths kg). Mirrors data/moves/low_kick_power.asm.
     IF v_move_effect = 'EFFECT_LOW_KICK' THEN
         SET v_move_power = CASE
             WHEN v_defender_weight_tenths >= 2000 THEN 120
             WHEN v_defender_weight_tenths >= 1000 THEN 100
-            WHEN v_defender_weight_tenths >= 50 THEN 80
-            WHEN v_defender_weight_tenths >= 25 THEN 60
-            WHEN v_defender_weight_tenths >= 10 THEN 40
+            WHEN v_defender_weight_tenths >= 500 THEN 80
+            WHEN v_defender_weight_tenths >= 250 THEN 60
+            WHEN v_defender_weight_tenths >= 100 THEN 40
             ELSE 20
         END;
     END IF;
