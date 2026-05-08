@@ -2,7 +2,7 @@
 -- That row also carries trainer_atk_pct_min / Max for THAT move only. Counter KO uses dam_perc_min vs trainer.
 WITH trainer_mon AS (
 	SELECT p.id AS tid, p.spe AS trainer_spe FROM pokemon p
-	WHERE p.species_code = 'TOGETIC' AND p.form_code = 'PLAIN'
+	WHERE p.species_code = 'RATICATE' AND p.form_code = 'ALOLAN'
 ),
 counter_level AS (
 	SELECT DISTINCT p.id AS counter_id, s.lvl_cap, tr.tid, tr.trainer_spe
@@ -11,6 +11,7 @@ counter_level AS (
 	INNER JOIN pokemon p ON (p.species_code = ps.species_code AND p.form_code = ps.form_code)
 	CROSS JOIN trainer_mon tr
 	WHERE s.id = 3
+	#AND p.species_code IN ('STEELIX', 'SCYTHE')
 ),
 enemy_move_roll AS (
 	SELECT
@@ -19,7 +20,7 @@ enemy_move_roll AS (
 		calculate_attack_damage_percent(cl.tid, mv.id, cl.counter_id, cl.lvl_cap, cl.lvl_cap, 'min') AS trainer_atk_pct_min
 	FROM counter_level cl
 	CROSS JOIN moves mv
-	WHERE mv.`code` IN ('HEADBUTT', 'METRONOME', 'SWEET_KISS', 'DISARM_VOICE')
+	WHERE mv.`code` IN ('HYPER_FANG', 'BITE', 'PURSUIT', 'SUCKER_PUNCH')
 ),
 enemy_optimal AS (
 	SELECT counter_id, lvl_cap, enemy_move_id, enemy_pick_move, trainer_atk_pct_max, trainer_atk_pct_min
@@ -35,10 +36,11 @@ enemy_optimal AS (
 ),
 raw_moves AS (
 	SELECT ps.species_code, ps.form_code, m.`code`, m.accuracy,
-		p.id AS counter_id, p.spe AS counter_spe, tr.trainer_spe, tr.tid, s.lvl_cap AS lvl_cap,
-		eo.enemy_pick_move, eo.trainer_atk_pct_min AS dam_perc_min_atc, eo.trainer_atk_pct_max AS dam_perc_max_atc,
+		p.spe AS counter_spe, tr.trainer_spe, 
+		eo.enemy_pick_move, 
 		calculate_attack_damage_percent(p.id, m.id, tr.tid, s.lvl_cap, s.lvl_cap, 'min') AS dam_perc_min,
-		calculate_attack_damage_percent(p.id, m.id, tr.tid, s.lvl_cap, s.lvl_cap, 'max') AS dam_perc_max
+		calculate_attack_damage_percent(p.id, m.id, tr.tid, s.lvl_cap, s.lvl_cap, 'max') AS dam_perc_max,
+		eo.trainer_atk_pct_min AS dam_perc_min_atc, eo.trainer_atk_pct_max AS dam_perc_max_atc
 	FROM splits s
 	INNER JOIN pokemon_split ps ON (ps.splits_id <= s.id AND ps.splits_id IS NOT NULL)
 	INNER JOIN pokemon p ON (p.species_code = ps.species_code AND p.form_code = ps.form_code)
@@ -50,7 +52,7 @@ raw_moves AS (
 	WHERE s.id = 3
 		AND (pm.learn_method IN ('level_up', 'prev_evo_lvl_up') OR ms.move_code IS NOT NULL)
 		AND m.`code` NOT IN ('FUTURE_SIGHT', 'DREAM_EATER', 'BLIZZARD', 'THUNDER', 'FIRE_BLAST', 'SUCKER_PUNCH')
-		AND NOT (p.species_code IN ('GYARADOS', 'SLOWKING', 'WIGGLYTUFF')
+		AND NOT (p.species_code IN ('GYARADOS', 'SLOWKING', 'WIGGLYTUFF','SCIZOR','NIDOQUEEN','CLEFABLE')
 			AND pm.learn_method = 'level_up' AND pm.learn_level = 1)
 		AND NOT (p.species_code IN ('HERACROSS') AND m.`code` = 'NIGHT_SLASH' AND s.id < 5)
 ),
@@ -71,6 +73,11 @@ ranked AS (
 		) AS rn
 	FROM scored
 )
-SELECT * FROM ranked WHERE rn = 1
-ORDER BY turns_to_ko_enemy ASC, turns_to_survive_enemy DESC, race_favor DESC,
-	outspeed_trainer DESC, counter_spe DESC, species_code;
+SELECT * FROM ranked 
+WHERE rn = 1
+ORDER BY 
+	CASE 
+		WHEN (turns_to_ko_enemy IN (1) AND outspeed_trainer = 1) THEN 2 
+		#WHEN (turns_to_ko_enemy IN (2) AND outspeed_trainer = 1) THEN 1 
+	ELSE 0 END DESC, race_favor DESC, turns_to_ko_enemy ASC, turns_to_survive_enemy + outspeed_trainer DESC, 
+	outspeed_trainer DESC, dam_perc_min DESC, dam_perc_max_atc ASC, counter_spe DESC, species_code;
