@@ -31,7 +31,11 @@ TMHMMoves:
 	db DIG          ; TM28 (National Park)
 	db PSYCHIC_M    ; TM29 (Sabrina)
 	db SHADOW_BALL  ; TM30 (Morty)
+if DEF(FAITHFUL)
 	db ROCK_SMASH   ; TM31 (Route 36)
+else
+	db BRICK_BREAK  ; TM31 (TM_ROCK_SMASH slot; Polished Brick Break vs Faithful Rock Smash)
+endc
 	db DOUBLE_TEAM  ; TM32 (Celadon Game Corner)
 	db REFLECT      ; TM33 (Goldenrod Dept. Store)
 	db FLASH_CANNON ; TM34 (Route 9)

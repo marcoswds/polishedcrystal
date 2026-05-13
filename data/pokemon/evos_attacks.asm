@@ -1825,7 +1825,7 @@ endc
 if DEF(FAITHFUL)
 	learnset 40, NIGHT_SLASH ; Brick Break → egg move
 else
-	learnset 40, ROCK_SMASH ; Brick Break
+	learnset 40, BRICK_BREAK ; was Rock Smash TM → Brick Break
 endc
 	learnset 45, SWORDS_DANCE
 	learnset 50, BODY_SLAM ; Slam → TR move
@@ -2302,7 +2302,11 @@ endc
 	learnset 31, FALSE_SWIPE ; Thrash → False Swipe
 	learnset 33, THRASH ; Fling → Thrash
 	learnset 37, MAGNITUDE ; Stomping Tantrum → new move
-	learnset 41, ROCK_SMASH ; Endeavor → TM move
+if DEF(FAITHFUL)
+	learnset 41, ROCK_SMASH ; Endeavor → TM slot
+else
+	learnset 41, BRICK_BREAK ; Brick Break TM
+endc
 	learnset 43, DOUBLE_EDGE
 	learnset 47, REVERSAL ; Retaliate → new move
 	learnset 51, OUTRAGE ; Bone Rush → HGSS tutor move
@@ -2321,7 +2325,11 @@ endc
 	learnset 33, THRASH
 	learnset 37, KNOCK_OFF ; Fling → TM move
 	learnset 43, MAGNITUDE ; Stomping Tantrum → new move
-	learnset 49, ROCK_SMASH ; Endeavor → TM move
+if DEF(FAITHFUL)
+	learnset 49, ROCK_SMASH ; Endeavor → TM slot
+else
+	learnset 49, BRICK_BREAK ; Brick Break TM
+endc
 	learnset 53, DOUBLE_EDGE
 	learnset 59, REVERSAL ; Retaliate → new move
 	learnset 65, OUTRAGE ; Bone Rush → HGSS tutor move
@@ -2340,7 +2348,11 @@ endc
 	learnset 33, THRASH
 	learnset 37, KNOCK_OFF ; Fling → TM move
 	learnset 43, ACROBATICS ; Stomping Tantrum → new move
-	learnset 49, ROCK_SMASH ; Endeavor → TM move
+if DEF(FAITHFUL)
+	learnset 49, ROCK_SMASH ; Endeavor → TM slot
+else
+	learnset 49, BRICK_BREAK ; Brick Break TM
+endc
 	learnset 53, FLARE_BLITZ
 	learnset 59, PAIN_SPLIT ; Retaliate → S/M tutor move
 	learnset 65, OUTRAGE ; Bone Rush → HGSS tutor move
@@ -2355,7 +2367,7 @@ endc
 if DEF(FAITHFUL)
 	learnset 21, ENDURE ; Focus Energy → TM move
 else
-	learnset 21, ROCK_SMASH ; Focus Energy → "Brick Break"
+	learnset 21, BRICK_BREAK ; Focus Energy → Brick Break TM
 endc
 	learnset 25, AERIAL_ACE ; Feint → new move
 	learnset 29, HI_JUMP_KICK
@@ -2753,7 +2765,11 @@ endc
 	learnset 12, DEFENSE_CURL ; Harden → similar move
 	learnset 16, RAGE ; Revenge → RBY TM move
 	learnset 20, ROCK_THROW ; Brick Break → event move
-	learnset 26, ROCK_SMASH ; Vital Throw → TM move
+if DEF(FAITHFUL)
+	learnset 26, ROCK_SMASH ; Vital Throw → TM slot
+else
+	learnset 26, BRICK_BREAK ; Vital Throw → Brick Break TM
+endc
 	learnset 29, X_SCISSOR
 	learnset 33, FEINT_ATTACK ; Submission → egg moves
 	learnset 36, OUTRAGE ; Storm Throw → LGPE move
@@ -3155,7 +3171,11 @@ endc
 	learnset 22, COUNTER ; Pluck → Counter
 	learnset 29, ANCIENTPOWER
 	learnset 36, AGILITY ; Charge → Agility
-	learnset 43, ROCK_SMASH ; Agility → Rock Smash/Brick Break
+if DEF(FAITHFUL)
+	learnset 43, ROCK_SMASH ; Brick Break TM slot
+else
+	learnset 43, BRICK_BREAK ; Brick Break TM
+endc
 	learnset 50, DRILL_PECK ; Discharge → Drill Peck
 	learnset 57, BULK_UP
 	learnset 64, LIGHT_SCREEN
@@ -5717,7 +5737,7 @@ endc
 if DEF(FAITHFUL)
 	learnset 40, NIGHT_SLASH ; Brick Break → egg move
 else
-	learnset 40, ROCK_SMASH ; Brick Break
+	learnset 40, BRICK_BREAK ; was Rock Smash TM → Brick Break
 endc
 	learnset 45, SWORDS_DANCE
 	learnset 50, BODY_SLAM ; Slam → TR move

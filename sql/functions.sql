@@ -20,6 +20,7 @@ BEGIN
     DECLARE v_move_type_id INT;
     DECLARE v_move_category VARCHAR(10);
     DECLARE v_move_effect VARCHAR(64);
+    DECLARE v_move_code VARCHAR(64);
     DECLARE v_hit_count INT DEFAULT 1;
 
     DECLARE v_attacker_atk INT;
@@ -57,8 +58,8 @@ BEGIN
     DECLARE v_percent DECIMAL(16,6);
     DECLARE v_fixed_damage_hits DECIMAL(6,3);
 
-    SELECT m.power, m.type_id, m.category, m.effect
-      INTO v_move_power, v_move_type_id, v_move_category, v_move_effect
+    SELECT m.power, m.type_id, m.category, m.effect, m.code
+      INTO v_move_power, v_move_type_id, v_move_category, v_move_effect, v_move_code
       FROM moves m
      WHERE m.id = p_move_id;
 
@@ -109,6 +110,11 @@ BEGIN
             WHEN v_defender_weight_tenths >= 100 THEN 40
             ELSE 20
         END;
+    END IF;
+
+    -- Acrobatics: EFFECT_CONDITIONAL_BOOST doubles damage when attacker has no held item (engine/battle/effect_commands.asm DoAcrobatics). Assume optimal (free item slot).
+    IF v_move_code = 'ACROBATICS' THEN
+        SET v_move_power = v_move_power * 2;
     END IF;
 
     IF p_mode = 'min' THEN
