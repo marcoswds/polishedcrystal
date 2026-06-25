@@ -3,7 +3,7 @@
 -- slower + both priority is treated as foe first (tie assumes worst when equal Spe and both prio).
 WITH trainer_mon AS (
 	SELECT p.id AS tid, p.spe AS trainer_spe FROM pokemon p
-	WHERE p.species_code = 'RATICATE' AND p.form_code = 'ALOLAN'
+	WHERE p.species_code = 'DROWZEE' AND p.form_code = 'PLAIN'
 ),
 counter_level AS (
 	SELECT DISTINCT p.id AS counter_id, s.lvl_cap, tr.tid, tr.trainer_spe
@@ -11,8 +11,8 @@ counter_level AS (
 	INNER JOIN pokemon_split ps ON (ps.splits_id <= s.id AND ps.splits_id IS NOT NULL)
 	INNER JOIN pokemon p ON (p.species_code = ps.species_code AND p.form_code = ps.form_code)
 	CROSS JOIN trainer_mon tr
-	WHERE s.id = 3
-	#AND p.species_code IN ('STEELIX', 'SCYTHE')
+	WHERE s.id = 5
+	#AND p.species_code IN ('POLITOED', 'SCYTHE')
 ),
 enemy_move_roll AS (
 	SELECT
@@ -22,7 +22,7 @@ enemy_move_roll AS (
 		calculate_attack_damage_percent(cl.tid, mv.id, cl.counter_id, cl.lvl_cap, cl.lvl_cap, 'min') AS trainer_atk_pct_min
 	FROM counter_level cl
 	CROSS JOIN moves mv
-	WHERE mv.`code` IN ('HYPER_FANG', 'BITE', 'PURSUIT', 'SUCKER_PUNCH')
+	WHERE mv.`code` IN ('HYPNOSIS', 'DISABLE', 'PSYBEAM')
 ),
 enemy_optimal AS (
 	SELECT counter_id, lvl_cap, enemy_move_id, enemy_pick_move,
@@ -54,12 +54,14 @@ raw_moves AS (
 	LEFT JOIN moves_split ms ON (m.`code` = ms.move_code AND ms.splits_id <= s.id)
 	INNER JOIN trainer_mon tr
 	INNER JOIN enemy_optimal eo ON (eo.counter_id = p.id AND eo.lvl_cap = s.lvl_cap)
-	WHERE s.id = 3
+	WHERE s.id = 5
 		AND (pm.learn_method IN ('level_up', 'prev_evo_lvl_up') OR ms.move_code IS NOT NULL)
-		AND m.`code` NOT IN ('FUTURE_SIGHT', 'DREAM_EATER', 'BLIZZARD', 'THUNDER', 'FIRE_BLAST', 'SUCKER_PUNCH')
-		AND NOT (p.species_code IN ('GYARADOS', 'SLOWKING', 'WIGGLYTUFF', 'SCIZOR', 'NIDOQUEEN', 'CLEFABLE')
+		AND m.`code` NOT IN ('FUTURE_SIGHT', 'DREAM_EATER', 'BLIZZARD', 'THUNDER', 'FIRE_BLAST', 'SUCKER_PUNCH', 'MEGAHORN')
+		AND NOT (p.species_code IN ('GYARADOS', 'SLOWKING', 'WIGGLYTUFF', 'SCIZOR', 'NIDOQUEEN', 'NIDOKING', 'CLEFABLE', 'VENOMOTH','DONPHAN','TOGEKISS')
 			AND pm.learn_method = 'level_up' AND pm.learn_level = 1 AND s.id < 5)
 		AND NOT (p.species_code IN ('HERACROSS') AND m.`code` = 'NIGHT_SLASH' AND s.id < 5)
+		#AND NOT (m.type_id IN (11))
+		#AND NOT m.`code` = 'DIG'
 ),
 scored AS (
 	SELECT raw_moves.*,
@@ -91,8 +93,8 @@ SELECT * FROM ranked
 WHERE rn = 1
 ORDER BY
 	CASE 
-		WHEN (turns_to_ko_enemy IN (1) AND outspeed_trainer = 1) THEN 2 
-		#WHEN (turns_to_ko_enemy IN (2) AND outspeed_trainer = 1) THEN 1 
+		WHEN (turns_to_ko_enemy IN (1) AND strikes_first = 1) THEN 2 
+		#WHEN (turns_to_ko_enemy IN (2) AND strikes_first = 1) THEN 1 
 	ELSE 0 END DESC,
 	race_favor DESC, turns_to_ko_enemy ASC,
 	turns_to_survive_enemy + strikes_first DESC,

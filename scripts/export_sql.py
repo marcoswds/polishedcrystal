@@ -17,6 +17,14 @@ SQL_DIR = ROOT / "sql"
 USE_FAITHFUL_BUILD = False
 
 
+def tmhm_move_export_code(move_code: str) -> str:
+    """Pokemon tmhm compat lists use TM slot mnemonics; map to actual move taught in ROM."""
+    # TM_ROCK_SMASH teaches BRICK_BREAK when not FAITHFUL (see data/moves/tmhm_moves.asm).
+    if not USE_FAITHFUL_BUILD and move_code == "ROCK_SMASH":
+        return "BRICK_BREAK"
+    return move_code
+
+
 def preprocess_asm(path: Path, faithful: bool = USE_FAITHFUL_BUILD) -> list[str]:
     lines = path.read_text(encoding="utf-8").splitlines()
     out: list[str] = []
@@ -787,10 +795,11 @@ def generate_seed_sql(output: Path) -> None:
                 pokemon_move_values.append(f"({pid}, {mid}, 'prev_evo_lvl_up', {level})")
 
         for move_code in row.tmhm_moves:
-            mid = move_id.get(move_code)
+            export_code = tmhm_move_export_code(move_code)
+            mid = move_id.get(export_code)
             if mid is None:
                 continue
-            method = tmhm_methods.get(move_code, "tm_hm")
+            method = tmhm_methods.get(export_code, "tm_hm")
             pokemon_move_values.append(f"({pid}, {mid}, {sql_string(method)}, 0)")
     if pokemon_move_values:
         prefix = "INSERT IGNORE INTO pokemon_moves (pokemon_id, move_id, learn_method, learn_level) VALUES "
